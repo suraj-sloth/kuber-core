@@ -4,6 +4,7 @@
 **Status:** Implementation started — Event Bus complete
 
 Developer skills: assume new to in C++ and rust. explain everything in detail so as to teach as while implementing.
+Update this file with new changes and planning we do.
 
 ---
 

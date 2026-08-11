@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
 #include <functional>
 #include <memory>
@@ -97,8 +98,12 @@ public:
 
         for (size_t i = 0; i < list.ids.size(); ++i) {
             if (list.ids[i] == id) {
-                list.ids.erase(list.ids.begin() + i);
-                list.handlers.erase(list.handlers.begin() + i);
+                // The cast is required, not decoration: iterator operator+ takes
+                // a SIGNED difference_type, so `begin() + i` with a size_t i is an
+                // implicit sign conversion. -Wsign-conversion rejects it.
+                const auto offset = static_cast<std::ptrdiff_t>(i);
+                list.ids.erase(list.ids.begin() + offset);
+                list.handlers.erase(list.handlers.begin() + offset);
                 return true;
             }
         }

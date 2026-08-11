@@ -1,0 +1,46 @@
+{
+  "version": 3,
+  "cmakeMinimumRequired": { "major": 3, "minor": 20, "patch": 0 },
+  "configurePresets": [
+    {
+      "name": "dev",
+      "displayName": "Debug + AddressSanitizer + UndefinedBehaviorSanitizer",
+      "description": "Default for all development and testing. Catches use-after-free, out-of-bounds, and UB at runtime with a stack trace. NEVER benchmark with this: sanitizers cost 3-10x.",
+      "binaryDir": "${sourceDir}/build/dev",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_CXX_FLAGS": "-g -fno-omit-frame-pointer -fsanitize=address,undefined -fno-sanitize-recover=all",
+        "KUBER_BUILD_TESTS": "ON"
+      }
+    },
+    {
+      "name": "perf",
+      "displayName": "Release + native + LTO",
+      "description": "The ONLY preset valid for benchmark numbers. -march=native means these numbers do not transfer to another CPU, so always print the CPU model alongside them.",
+      "binaryDir": "${sourceDir}/build/perf",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_CXX_FLAGS": "-O3 -march=native",
+        "CMAKE_INTERPROCEDURAL_OPTIMIZATION": "ON",
+        "KUBER_BUILD_TESTS": "ON",
+        "KUBER_BUILD_BENCH": "ON"
+      }
+    }
+  ],
+  "buildPresets": [
+    { "name": "dev", "configurePreset": "dev" },
+    { "name": "perf", "configurePreset": "perf" }
+  ],
+  "testPresets": [
+    {
+      "name": "dev",
+      "configurePreset": "dev",
+      "output": { "outputOnFailure": true }
+    },
+    {
+      "name": "perf",
+      "configurePreset": "perf",
+      "output": { "outputOnFailure": true }
+    }
+  ]
+}

@@ -1,0 +1,32 @@
+# Build trees (CMakePresets puts them under build/<preset>)
+build/
+cmake-build-*/
+CMakeUserPresets.json
+
+# Tooling artifacts
+compile_commands.json
+.cache/
+.ccls-cache/
+
+# Profiling / benchmarking output
+perf.data
+perf.data.old
+*.folded
+*.svg
+flamegraph.html
+
+# Engine output
+*.log
+*.klog
+*.snapshot
+
+# Rust (tools/trikala-rs, Stage 7)
+target/
+**/*.rs.bk
+
+# Editors / OS
+.idea/
+.vscode/
+*.swp
+*~
+.DS_Store

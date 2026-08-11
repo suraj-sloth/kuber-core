@@ -1,50 +1,79 @@
+// logging.h — Control-plane logging.
+//
+// HOT-PATH RULE: never call this from the matching loop, the order book, or
+// anything else on the data plane. Logging allocates, locks, and formats.
+// The data plane gets integer counters instead. See CLAUDE.md.
+//
+// Two things make this cheaper than the version it replaces:
+//   1. The level check happens in the MACRO, before the arguments are
+//      evaluated or formatted. A disabled LOG_DEBUG costs one predictable
+//      branch and does not build a string.
+//   2. Formatting is std::format-based, so callers pass values, not a
+//      pre-built std::string. The old API forced a heap allocation at every
+//      call site just to get the message in.
+
 #pragma once
 
-#include "trading/common.h"
-#include <chrono>
-#include <functional>
-#include <memory>
+#include <atomic>
+#include <format>
+#include <iosfwd>
 #include <mutex>
 #include <string_view>
+#include <utility>
 
 namespace trading {
 
 class Logger {
 public:
-    enum class Level {
-        TRACE = 0,
-        DEBUG = 1,
-        INFO = 2,
-        WARN = 3,
-        ERROR = 4,
-        CRITICAL = 5
+    enum class Level : int {
+        Trace = 0,
+        Debug = 1,
+        Info = 2,
+        Warn = 3,
+        Error = 4,
+        Critical = 5,
+        Off = 6,  // set as the threshold to silence everything
     };
 
-    using LogCallback = std::function<void(Level, const std::string&)>;
-
-    static void init(Level level = Level::INFO);
+    // `sink` must outlive every logging call. std::cerr is the usual choice.
+    static void init(Level level, std::ostream& sink);
     static void shutdown();
 
-    static void set_callback(LogCallback callback);
+    static void setLevel(Level level) noexcept;
+    [[nodiscard]] static Level level() noexcept;
 
-    static void trace(const std::string& message);
-    static void debug(const std::string& message);
-    static void info(const std::string& message);
-    static void warn(const std::string& message);
-    static void error(const std::string& message);
-    static void critical(const std::string& message);
+    // Prefer the LOG_* macros — they skip formatting when the level is off.
+    template <typename... Args>
+    static void log(Level lvl, std::string_view fmt, Args&&... args) {
+        write(lvl, std::vformat(fmt, std::make_format_args(args...)));
+    }
+
+    static void write(Level lvl, std::string_view message);
 
 private:
-    static Level level_;
-    static LogCallback callback_;
+    // Declared here, DEFINED in logging.cpp — exactly once, in one translation
+    // unit. That is the One Definition Rule. The previous header declared these
+    // and never defined them anywhere, so anything touching Logger failed to link.
+    static std::atomic<Level> level_;
+    static std::ostream* sink_;
     static std::mutex mutex_;
 };
 
-} // namespace trading
+}  // namespace trading
 
-#define LOG_TRACE(msg) trading::Logger::trace(msg)
-#define LOG_DEBUG(msg) trading::Logger::debug(msg)
-#define LOG_INFO(msg) trading::Logger::info(msg)
-#define LOG_WARN(msg) trading::Logger::warn(msg)
-#define LOG_ERROR(msg) trading::Logger::error(msg)
-#define LOG_CRITICAL(msg) trading::Logger::critical(msg)
+// The `if` lives here, not inside log(), so that arguments to a disabled level
+// are never even evaluated. do/while(false) makes the macro behave like a
+// single statement, so `if (x) LOG_INFO(...); else ...` parses correctly.
+#define KUBER_LOG(lvl, ...)                                 \
+    do {                                                    \
+        if ((lvl) >= ::trading::Logger::level()) {           \
+            ::trading::Logger::log((lvl), __VA_ARGS__);      \
+        }                                                   \
+    } while (false)
+
+#define LOG_TRACE(...) KUBER_LOG(::trading::Logger::Level::Trace, __VA_ARGS__)
+#define LOG_DEBUG(...) KUBER_LOG(::trading::Logger::Level::Debug, __VA_ARGS__)
+#define LOG_INFO(...) KUBER_LOG(::trading::Logger::Level::Info, __VA_ARGS__)
+#define LOG_WARN(...) KUBER_LOG(::trading::Logger::Level::Warn, __VA_ARGS__)
+#define LOG_ERROR(...) KUBER_LOG(::trading::Logger::Level::Error, __VA_ARGS__)
+#define LOG_CRITICAL(...) KUBER_LOG(::trading::Logger::Level::Critical, __VA_ARGS__)

@@ -1,221 +1,154 @@
 // event_bus_test.cpp
 //
-// Compilation: g++ -std=c++20 -Wall -Wextra -o event_bus_test event_bus_test.cpp
-// Run: ./event_bus_test
+// Build/run:  cmake --build --preset dev && ctest --preset dev
 //
-// This test demonstrates:
-// 1. Subscribing to events
-// 2. Publishing events
-// 3. Unsubscribing handlers
-// 4. Multiple handlers for the same event
-// 5. Type safety — events are isolated by type
+// Ported from assert() to the CHECK/REQUIRE macros in kuber_test.h. That port
+// is not cosmetic: assert() expands to nothing when NDEBUG is defined, so the
+// previous version of this file passed vacuously in any Release build, and its
+// main() returned 0 whether or not anything failed.
 
+#include "kuber_test.h"
 #include "trading/event_bus.h"
-#include <cassert>
-#include <iostream>
-#include <string>
 
-// ============================================================================
+// ---------------------------------------------------------------------------
 // Test 1: Basic subscribe and publish
-// ============================================================================
-
+// ---------------------------------------------------------------------------
 void test_basic_publish() {
-    std::cout << "Test 1: Basic publish... ";
-
     trading::EventBus bus;
     int receivedValue = 0;
 
-    // Subscribe a lambda that captures `receivedValue` by reference
-    // C++ Concept: Lambda with capture — closure over local variable
-    bus.subscribe<trading::OrderEvent>([&receivedValue](const trading::OrderEvent& e) {
-        receivedValue = e.quantity;
-    });
+    // Lambda with capture — a closure over a local variable.
+    bus.subscribe<trading::OrderEvent>(
+        [&receivedValue](const trading::OrderEvent& e) { receivedValue = e.quantity; });
 
-    // Publish an event
     bus.publish(trading::OrderEvent{.orderId = 1, .price = 100.50, .quantity = 42, .isBuy = true});
 
-    assert(receivedValue == 42);
-    std::cout << "PASS\n";
+    CHECK_EQ(receivedValue, 42);
 }
 
-// ============================================================================
-// Test 2: Multiple handlers for same event
-// ============================================================================
-
+// ---------------------------------------------------------------------------
+// Test 2: Multiple handlers for the same event
+// ---------------------------------------------------------------------------
 void test_multiple_handlers() {
-    std::cout << "Test 2: Multiple handlers... ";
-
     trading::EventBus bus;
     int callCount = 0;
 
-    bus.subscribe<trading::TradeEvent>([&callCount](const trading::TradeEvent&) {
-        callCount++;
-    });
-
-    bus.subscribe<trading::TradeEvent>([&callCount](const trading::TradeEvent&) {
-        callCount++;
-    });
+    bus.subscribe<trading::TradeEvent>([&callCount](const trading::TradeEvent&) { ++callCount; });
+    bus.subscribe<trading::TradeEvent>([&callCount](const trading::TradeEvent&) { ++callCount; });
 
     bus.publish(trading::TradeEvent{});
 
-    assert(callCount == 2);
-    std::cout << "PASS\n";
+    CHECK_EQ(callCount, 2);
 }
 
-// ============================================================================
-// Test 3: Unsubscribe removes handler
-// ============================================================================
-
+// ---------------------------------------------------------------------------
+// Test 3: Unsubscribe removes the handler
+// ---------------------------------------------------------------------------
 void test_unsubscribe() {
-    std::cout << "Test 3: Unsubscribe... ";
-
     trading::EventBus bus;
     int callCount = 0;
 
-    auto id = bus.subscribe<trading::OrderEvent>([&callCount](const trading::OrderEvent&) {
-        callCount++;
-    });
+    const auto id =
+        bus.subscribe<trading::OrderEvent>([&callCount](const trading::OrderEvent&) { ++callCount; });
 
     bus.publish(trading::OrderEvent{});
-    assert(callCount == 1);
+    CHECK_EQ(callCount, 1);
 
-    // Unsubscribe
-    bool removed = bus.unsubscribe<trading::OrderEvent>(id);
-    assert(removed);
+    const bool removed = bus.unsubscribe<trading::OrderEvent>(id);
+    CHECK(removed);
 
-    // Should not be called again
     bus.publish(trading::OrderEvent{});
-    assert(callCount == 1);
-
-    std::cout << "PASS\n";
+    CHECK_EQ(callCount, 1);  // unchanged — the handler is gone
 }
 
-// ============================================================================
-// Test 4: Event types are isolated
-// ============================================================================
-
+// ---------------------------------------------------------------------------
+// Test 4: Event types are isolated from each other
+// ---------------------------------------------------------------------------
 void test_type_isolation() {
-    std::cout << "Test 4: Type isolation... ";
-
     trading::EventBus bus;
     int orderCount = 0;
     int tradeCount = 0;
 
-    // These are separate subscription lists
-    bus.subscribe<trading::OrderEvent>([&orderCount](const trading::OrderEvent&) {
-        orderCount++;
-    });
+    bus.subscribe<trading::OrderEvent>([&orderCount](const trading::OrderEvent&) { ++orderCount; });
+    bus.subscribe<trading::TradeEvent>([&tradeCount](const trading::TradeEvent&) { ++tradeCount; });
 
-    bus.subscribe<trading::TradeEvent>([&tradeCount](const trading::TradeEvent&) {
-        tradeCount++;
-    });
-
-    // Publishing OrderEvent only triggers OrderEvent handlers
     bus.publish(trading::OrderEvent{});
-    assert(orderCount == 1);
-    assert(tradeCount == 0);
+    CHECK_EQ(orderCount, 1);
+    CHECK_EQ(tradeCount, 0);
 
-    // Publishing TradeEvent only triggers TradeEvent handlers
     bus.publish(trading::TradeEvent{});
-    assert(orderCount == 1);
-    assert(tradeCount == 1);
-
-    std::cout << "PASS\n";
+    CHECK_EQ(orderCount, 1);
+    CHECK_EQ(tradeCount, 1);
 }
 
-// ============================================================================
-// Test 5: Handler ID type safety
-// ============================================================================
-
+// ---------------------------------------------------------------------------
+// Test 5: Handler IDs are distinct and independently removable
+// ---------------------------------------------------------------------------
 void test_handler_id_type_safety() {
-    std::cout << "Test 5: Handler ID type safety... ";
-
     trading::EventBus bus;
 
-    // Each subscribe call returns a unique HandlerId
-    auto id1 = bus.subscribe<trading::OrderEvent>([](const trading::OrderEvent&) {});
-    auto id2 = bus.subscribe<trading::OrderEvent>([](const trading::OrderEvent&) {});
+    const auto id1 = bus.subscribe<trading::OrderEvent>([](const trading::OrderEvent&) {});
+    const auto id2 = bus.subscribe<trading::OrderEvent>([](const trading::OrderEvent&) {});
 
-    // IDs are distinct
-    assert(id1 != id2);
+    CHECK(id1 != id2);
 
-    // Unsubscribing id1 does not affect id2
     bus.unsubscribe<trading::OrderEvent>(id1);
-    assert(bus.handlerCount<trading::OrderEvent>() == 1);
-
-    std::cout << "PASS\n";
+    // 1U, not 1: handlerCount() returns size_t, and comparing signed to
+    // unsigned is exactly the class of bug -Wsign-compare exists to catch.
+    CHECK_EQ(bus.handlerCount<trading::OrderEvent>(), 1U);
 }
 
-// ============================================================================
-// Test 6: Clear removes all handlers
-// ============================================================================
-
+// ---------------------------------------------------------------------------
+// Test 6: clear() removes every handler for every type
+// ---------------------------------------------------------------------------
 void test_clear() {
-    std::cout << "Test 6: Clear... ";
-
     trading::EventBus bus;
 
     bus.subscribe<trading::OrderEvent>([](const trading::OrderEvent&) {});
     bus.subscribe<trading::OrderEvent>([](const trading::OrderEvent&) {});
     bus.subscribe<trading::TradeEvent>([](const trading::TradeEvent&) {});
 
-    assert(bus.handlerCount<trading::OrderEvent>() == 2);
-    assert(bus.handlerCount<trading::TradeEvent>() == 1);
+    CHECK_EQ(bus.handlerCount<trading::OrderEvent>(), 2U);
+    CHECK_EQ(bus.handlerCount<trading::TradeEvent>(), 1U);
 
     bus.clear();
 
-    assert(bus.handlerCount<trading::OrderEvent>() == 0);
-    assert(bus.handlerCount<trading::TradeEvent>() == 0);
-
-    std::cout << "PASS\n";
+    CHECK_EQ(bus.handlerCount<trading::OrderEvent>(), 0U);
+    CHECK_EQ(bus.handlerCount<trading::TradeEvent>(), 0U);
 }
 
-// ============================================================================
-// Test 7: Structured binding with designated initializers
-// ============================================================================
-
+// ---------------------------------------------------------------------------
+// Test 7: C++20 designated initializers
+// ---------------------------------------------------------------------------
 void test_designated_initializers() {
-    std::cout << "Test 7: Designated initializers... ";
-
     trading::EventBus bus;
-    uint64_t receivedId = 0;
+    std::uint64_t receivedId = 0;
     double receivedPrice = 0.0;
 
-    bus.subscribe<trading::OrderEvent>(
-        [&receivedId, &receivedPrice](const trading::OrderEvent& e) {
-            receivedId = e.orderId;
-            receivedPrice = e.price;
-        });
-
-    // C++20 Designated Initializers: clear, self-documenting event construction
-    bus.publish(trading::OrderEvent{
-        .orderId = 12345,
-        .price = 99.95,
-        .quantity = 100,
-        .isBuy = false
+    bus.subscribe<trading::OrderEvent>([&receivedId, &receivedPrice](const trading::OrderEvent& e) {
+        receivedId = e.orderId;
+        receivedPrice = e.price;
     });
 
-    assert(receivedId == 12345);
-    assert(receivedPrice == 99.95);
+    bus.publish(
+        trading::OrderEvent{.orderId = 12345, .price = 99.95, .quantity = 100, .isBuy = false});
 
-    std::cout << "PASS\n";
+    CHECK_EQ(receivedId, 12345U);
+    // Exact float comparison is safe here only because the value was copied,
+    // never computed. Never write this against arithmetic results.
+    CHECK_EQ(receivedPrice, 99.95);
 }
-
-// ============================================================================
-// Main
-// ============================================================================
 
 int main() {
     std::cout << "=== Event Bus Tests ===\n\n";
 
-    test_basic_publish();
-    test_multiple_handlers();
-    test_unsubscribe();
-    test_type_isolation();
-    test_handler_id_type_safety();
-    test_clear();
-    test_designated_initializers();
+    RUN_TEST(test_basic_publish);
+    RUN_TEST(test_multiple_handlers);
+    RUN_TEST(test_unsubscribe);
+    RUN_TEST(test_type_isolation);
+    RUN_TEST(test_handler_id_type_safety);
+    RUN_TEST(test_clear);
+    RUN_TEST(test_designated_initializers);
 
-    std::cout << "\nAll tests passed.\n";
-    return 0;
+    return TEST_SUMMARY();
 }
