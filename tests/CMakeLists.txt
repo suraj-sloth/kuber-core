@@ -6,7 +6,7 @@
 # test cannot take the others' results with it.
 function(kuber_add_test name)
     add_executable(${name} ${name}.cpp)
-    target_link_libraries(${name} PRIVATE trading)
+    target_link_libraries(${name} PRIVATE kuber)
     # so tests can #include "kuber_test.h" without a relative path
     target_include_directories(${name} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
     add_test(NAME ${name} COMMAND ${name})

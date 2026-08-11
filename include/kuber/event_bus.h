@@ -9,7 +9,7 @@
 #include <utility>
 #include <vector>
 
-namespace trading {
+namespace kuber {
 
 // ============================================================================
 // C++ Concept: Constraining template parameters
@@ -237,4 +237,4 @@ struct genericEvent {
     int data;
 };
 
-} // namespace trading
+} // namespace kuber

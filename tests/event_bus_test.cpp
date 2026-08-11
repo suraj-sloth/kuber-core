@@ -8,20 +8,20 @@
 // main() returned 0 whether or not anything failed.
 
 #include "kuber_test.h"
-#include "trading/event_bus.h"
+#include "kuber/event_bus.h"
 
 // ---------------------------------------------------------------------------
 // Test 1: Basic subscribe and publish
 // ---------------------------------------------------------------------------
 void test_basic_publish() {
-    trading::EventBus bus;
+    kuber::EventBus bus;
     int receivedValue = 0;
 
     // Lambda with capture — a closure over a local variable.
-    bus.subscribe<trading::OrderEvent>(
-        [&receivedValue](const trading::OrderEvent& e) { receivedValue = e.quantity; });
+    bus.subscribe<kuber::OrderEvent>(
+        [&receivedValue](const kuber::OrderEvent& e) { receivedValue = e.quantity; });
 
-    bus.publish(trading::OrderEvent{.orderId = 1, .price = 100.50, .quantity = 42, .isBuy = true});
+    bus.publish(kuber::OrderEvent{.orderId = 1, .price = 100.50, .quantity = 42, .isBuy = true});
 
     CHECK_EQ(receivedValue, 42);
 }
@@ -30,13 +30,13 @@ void test_basic_publish() {
 // Test 2: Multiple handlers for the same event
 // ---------------------------------------------------------------------------
 void test_multiple_handlers() {
-    trading::EventBus bus;
+    kuber::EventBus bus;
     int callCount = 0;
 
-    bus.subscribe<trading::TradeEvent>([&callCount](const trading::TradeEvent&) { ++callCount; });
-    bus.subscribe<trading::TradeEvent>([&callCount](const trading::TradeEvent&) { ++callCount; });
+    bus.subscribe<kuber::TradeEvent>([&callCount](const kuber::TradeEvent&) { ++callCount; });
+    bus.subscribe<kuber::TradeEvent>([&callCount](const kuber::TradeEvent&) { ++callCount; });
 
-    bus.publish(trading::TradeEvent{});
+    bus.publish(kuber::TradeEvent{});
 
     CHECK_EQ(callCount, 2);
 }
@@ -45,19 +45,19 @@ void test_multiple_handlers() {
 // Test 3: Unsubscribe removes the handler
 // ---------------------------------------------------------------------------
 void test_unsubscribe() {
-    trading::EventBus bus;
+    kuber::EventBus bus;
     int callCount = 0;
 
     const auto id =
-        bus.subscribe<trading::OrderEvent>([&callCount](const trading::OrderEvent&) { ++callCount; });
+        bus.subscribe<kuber::OrderEvent>([&callCount](const kuber::OrderEvent&) { ++callCount; });
 
-    bus.publish(trading::OrderEvent{});
+    bus.publish(kuber::OrderEvent{});
     CHECK_EQ(callCount, 1);
 
-    const bool removed = bus.unsubscribe<trading::OrderEvent>(id);
+    const bool removed = bus.unsubscribe<kuber::OrderEvent>(id);
     CHECK(removed);
 
-    bus.publish(trading::OrderEvent{});
+    bus.publish(kuber::OrderEvent{});
     CHECK_EQ(callCount, 1);  // unchanged — the handler is gone
 }
 
@@ -65,18 +65,18 @@ void test_unsubscribe() {
 // Test 4: Event types are isolated from each other
 // ---------------------------------------------------------------------------
 void test_type_isolation() {
-    trading::EventBus bus;
+    kuber::EventBus bus;
     int orderCount = 0;
     int tradeCount = 0;
 
-    bus.subscribe<trading::OrderEvent>([&orderCount](const trading::OrderEvent&) { ++orderCount; });
-    bus.subscribe<trading::TradeEvent>([&tradeCount](const trading::TradeEvent&) { ++tradeCount; });
+    bus.subscribe<kuber::OrderEvent>([&orderCount](const kuber::OrderEvent&) { ++orderCount; });
+    bus.subscribe<kuber::TradeEvent>([&tradeCount](const kuber::TradeEvent&) { ++tradeCount; });
 
-    bus.publish(trading::OrderEvent{});
+    bus.publish(kuber::OrderEvent{});
     CHECK_EQ(orderCount, 1);
     CHECK_EQ(tradeCount, 0);
 
-    bus.publish(trading::TradeEvent{});
+    bus.publish(kuber::TradeEvent{});
     CHECK_EQ(orderCount, 1);
     CHECK_EQ(tradeCount, 1);
 }
@@ -85,53 +85,53 @@ void test_type_isolation() {
 // Test 5: Handler IDs are distinct and independently removable
 // ---------------------------------------------------------------------------
 void test_handler_id_type_safety() {
-    trading::EventBus bus;
+    kuber::EventBus bus;
 
-    const auto id1 = bus.subscribe<trading::OrderEvent>([](const trading::OrderEvent&) {});
-    const auto id2 = bus.subscribe<trading::OrderEvent>([](const trading::OrderEvent&) {});
+    const auto id1 = bus.subscribe<kuber::OrderEvent>([](const kuber::OrderEvent&) {});
+    const auto id2 = bus.subscribe<kuber::OrderEvent>([](const kuber::OrderEvent&) {});
 
     CHECK(id1 != id2);
 
-    bus.unsubscribe<trading::OrderEvent>(id1);
+    bus.unsubscribe<kuber::OrderEvent>(id1);
     // 1U, not 1: handlerCount() returns size_t, and comparing signed to
     // unsigned is exactly the class of bug -Wsign-compare exists to catch.
-    CHECK_EQ(bus.handlerCount<trading::OrderEvent>(), 1U);
+    CHECK_EQ(bus.handlerCount<kuber::OrderEvent>(), 1U);
 }
 
 // ---------------------------------------------------------------------------
 // Test 6: clear() removes every handler for every type
 // ---------------------------------------------------------------------------
 void test_clear() {
-    trading::EventBus bus;
+    kuber::EventBus bus;
 
-    bus.subscribe<trading::OrderEvent>([](const trading::OrderEvent&) {});
-    bus.subscribe<trading::OrderEvent>([](const trading::OrderEvent&) {});
-    bus.subscribe<trading::TradeEvent>([](const trading::TradeEvent&) {});
+    bus.subscribe<kuber::OrderEvent>([](const kuber::OrderEvent&) {});
+    bus.subscribe<kuber::OrderEvent>([](const kuber::OrderEvent&) {});
+    bus.subscribe<kuber::TradeEvent>([](const kuber::TradeEvent&) {});
 
-    CHECK_EQ(bus.handlerCount<trading::OrderEvent>(), 2U);
-    CHECK_EQ(bus.handlerCount<trading::TradeEvent>(), 1U);
+    CHECK_EQ(bus.handlerCount<kuber::OrderEvent>(), 2U);
+    CHECK_EQ(bus.handlerCount<kuber::TradeEvent>(), 1U);
 
     bus.clear();
 
-    CHECK_EQ(bus.handlerCount<trading::OrderEvent>(), 0U);
-    CHECK_EQ(bus.handlerCount<trading::TradeEvent>(), 0U);
+    CHECK_EQ(bus.handlerCount<kuber::OrderEvent>(), 0U);
+    CHECK_EQ(bus.handlerCount<kuber::TradeEvent>(), 0U);
 }
 
 // ---------------------------------------------------------------------------
 // Test 7: C++20 designated initializers
 // ---------------------------------------------------------------------------
 void test_designated_initializers() {
-    trading::EventBus bus;
+    kuber::EventBus bus;
     std::uint64_t receivedId = 0;
     double receivedPrice = 0.0;
 
-    bus.subscribe<trading::OrderEvent>([&receivedId, &receivedPrice](const trading::OrderEvent& e) {
+    bus.subscribe<kuber::OrderEvent>([&receivedId, &receivedPrice](const kuber::OrderEvent& e) {
         receivedId = e.orderId;
         receivedPrice = e.price;
     });
 
     bus.publish(
-        trading::OrderEvent{.orderId = 12345, .price = 99.95, .quantity = 100, .isBuy = false});
+        kuber::OrderEvent{.orderId = 12345, .price = 99.95, .quantity = 100, .isBuy = false});
 
     CHECK_EQ(receivedId, 12345U);
     // Exact float comparison is safe here only because the value was copied,

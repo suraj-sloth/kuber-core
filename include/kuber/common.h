@@ -1,4 +1,4 @@
-//=== trading ===//
+//=== kuber ===//
 
 #pragma once
 
@@ -9,11 +9,11 @@
 #include <unordered_map>
 #include <vector>
 
-namespace trading {
+namespace kuber {
 
 using Timestamp = std::chrono::nanoseconds::rep;
 using String = std::string;
 using StringView = std::string_view;
 using Id = uint64_t;
 
-} // namespace trading
+} // namespace kuber

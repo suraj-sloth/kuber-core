@@ -23,7 +23,7 @@
 #include <ostream>
 #include <string_view>
 
-namespace trading::test {
+namespace kuber::test {
 
 inline int g_checks = 0;
 inline int g_failures = 0;
@@ -50,32 +50,32 @@ inline void recordFailure(const char* file, int line, std::string_view expressio
     std::cerr << "  FAIL " << file << ':' << line << "  " << expression << '\n';
 }
 
-}  // namespace trading::test
+}  // namespace kuber::test
 
 // `#expr` is the stringification operator: the preprocessor turns the token
 // sequence into a string literal, so a failure can print the source text.
 #define CHECK(expr)                                                       \
     do {                                                                  \
-        ++::trading::test::g_checks;                                      \
+        ++::kuber::test::g_checks;                                      \
         if (!(expr)) {                                                    \
-            ::trading::test::recordFailure(__FILE__, __LINE__, #expr);    \
+            ::kuber::test::recordFailure(__FILE__, __LINE__, #expr);    \
         }                                                                 \
     } while (false)
 
 // Like CHECK but prints both operands, which is the whole reason to prefer it.
 #define CHECK_EQ(a, b)                                                    \
     do {                                                                  \
-        ++::trading::test::g_checks;                                      \
+        ++::kuber::test::g_checks;                                      \
         const auto& kuberLhs_ = (a);                                      \
         const auto& kuberRhs_ = (b);                                      \
         if (!(kuberLhs_ == kuberRhs_)) {                                  \
-            ++::trading::test::g_failures;                                \
-            ++::trading::test::g_currentTestFailures;                     \
+            ++::kuber::test::g_failures;                                \
+            ++::kuber::test::g_currentTestFailures;                     \
             std::cerr << "  FAIL " << __FILE__ << ':' << __LINE__         \
                       << "  " #a " == " #b "  (";                         \
-            ::trading::test::printValue(std::cerr, kuberLhs_);            \
+            ::kuber::test::printValue(std::cerr, kuberLhs_);            \
             std::cerr << " != ";                                          \
-            ::trading::test::printValue(std::cerr, kuberRhs_);            \
+            ::kuber::test::printValue(std::cerr, kuberRhs_);            \
             std::cerr << ")\n";                                           \
         }                                                                 \
     } while (false)
@@ -84,23 +84,23 @@ inline void recordFailure(const char* file, int line, std::string_view expressio
 // meaningless or unsafe — e.g. a null handle you are about to dereference.
 #define REQUIRE(expr)                                                     \
     do {                                                                  \
-        ++::trading::test::g_checks;                                      \
+        ++::kuber::test::g_checks;                                      \
         if (!(expr)) {                                                    \
-            ::trading::test::recordFailure(__FILE__, __LINE__, #expr);    \
+            ::kuber::test::recordFailure(__FILE__, __LINE__, #expr);    \
             return;                                                       \
         }                                                                 \
     } while (false)
 
 #define RUN_TEST(fn)                                                      \
     do {                                                                  \
-        ::trading::test::g_currentTestFailures = 0;                       \
+        ::kuber::test::g_currentTestFailures = 0;                       \
         std::cout << "[ RUN  ] " #fn "\n";                                \
         fn();                                                             \
-        if (::trading::test::g_currentTestFailures == 0) {                \
+        if (::kuber::test::g_currentTestFailures == 0) {                \
             std::cout << "[  OK  ] " #fn "\n";                            \
         } else {                                                          \
             std::cout << "[ FAIL ] " #fn " ("                             \
-                      << ::trading::test::g_currentTestFailures           \
+                      << ::kuber::test::g_currentTestFailures           \
                       << " check(s) failed)\n";                           \
         }                                                                 \
     } while (false)
@@ -109,6 +109,6 @@ inline void recordFailure(const char* file, int line, std::string_view expressio
 // The exit code is what makes ctest meaningful.
 #define TEST_SUMMARY()                                                    \
     ((std::cout << "\n"                                                   \
-                << ::trading::test::g_checks << " check(s), "             \
-                << ::trading::test::g_failures << " failure(s)\n"),       \
-     ::trading::test::g_failures == 0 ? 0 : 1)
+                << ::kuber::test::g_checks << " check(s), "             \
+                << ::kuber::test::g_failures << " failure(s)\n"),       \
+     ::kuber::test::g_failures == 0 ? 0 : 1)

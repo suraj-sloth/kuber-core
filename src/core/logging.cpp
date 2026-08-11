@@ -1,9 +1,9 @@
-#include "trading/logging.h"
+#include "kuber/logging.h"
 
 #include <iostream>
 #include <ostream>
 
-namespace trading {
+namespace kuber {
 
 // ---------------------------------------------------------------------------
 // The One Definition Rule, in practice.
@@ -81,4 +81,4 @@ void Logger::write(Level lvl, std::string_view message) {
     *out << '[' << levelName(lvl) << "] " << message << '\n';
 }
 
-}  // namespace trading
+}  // namespace kuber

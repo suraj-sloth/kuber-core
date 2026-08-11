@@ -1,0 +1,36 @@
+---
+Language: Cpp
+BasedOnStyle: Google
+
+ColumnLimit: 100
+IndentWidth: 4
+AccessModifierOffset: -4
+PointerAlignment: Left
+ReferenceAlignment: Left
+DerivePointerAlignment: false
+
+AllowShortFunctionsOnASingleLine: Inline
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: false
+
+# Group our headers separately from the standard library so it is obvious at a
+# glance what a translation unit depends on.
+IncludeBlocks: Regroup
+IncludeCategories:
+  - Regex: '^"kuber_test\.h"'
+    Priority: 1
+  - Regex: '^"kuber/'
+    Priority: 2
+  - Regex: '^<[a-z_]+>$'      # standard library, no extension
+    Priority: 4
+  - Regex: '.*'
+    Priority: 3
+
+SeparateDefinitionBlocks: Always
+SpaceAfterTemplateKeyword: true
+BreakBeforeBraces: Attach
+---
+# NOTE: clang-format is not installed on this machine yet.
+#   sudo apt install clang-format
+# The file is committed regardless: it fixes the style before the first
+# disagreement about it, and it signals intent to anyone reading the repo.

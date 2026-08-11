@@ -21,7 +21,7 @@
 #include <string_view>
 #include <utility>
 
-namespace trading {
+namespace kuber {
 
 class Logger {
 public:
@@ -59,21 +59,21 @@ private:
     static std::mutex mutex_;
 };
 
-}  // namespace trading
+}  // namespace kuber
 
 // The `if` lives here, not inside log(), so that arguments to a disabled level
 // are never even evaluated. do/while(false) makes the macro behave like a
 // single statement, so `if (x) LOG_INFO(...); else ...` parses correctly.
 #define KUBER_LOG(lvl, ...)                                 \
     do {                                                    \
-        if ((lvl) >= ::trading::Logger::level()) {           \
-            ::trading::Logger::log((lvl), __VA_ARGS__);      \
+        if ((lvl) >= ::kuber::Logger::level()) {           \
+            ::kuber::Logger::log((lvl), __VA_ARGS__);      \
         }                                                   \
     } while (false)
 
-#define LOG_TRACE(...) KUBER_LOG(::trading::Logger::Level::Trace, __VA_ARGS__)
-#define LOG_DEBUG(...) KUBER_LOG(::trading::Logger::Level::Debug, __VA_ARGS__)
-#define LOG_INFO(...) KUBER_LOG(::trading::Logger::Level::Info, __VA_ARGS__)
-#define LOG_WARN(...) KUBER_LOG(::trading::Logger::Level::Warn, __VA_ARGS__)
-#define LOG_ERROR(...) KUBER_LOG(::trading::Logger::Level::Error, __VA_ARGS__)
-#define LOG_CRITICAL(...) KUBER_LOG(::trading::Logger::Level::Critical, __VA_ARGS__)
+#define LOG_TRACE(...) KUBER_LOG(::kuber::Logger::Level::Trace, __VA_ARGS__)
+#define LOG_DEBUG(...) KUBER_LOG(::kuber::Logger::Level::Debug, __VA_ARGS__)
+#define LOG_INFO(...) KUBER_LOG(::kuber::Logger::Level::Info, __VA_ARGS__)
+#define LOG_WARN(...) KUBER_LOG(::kuber::Logger::Level::Warn, __VA_ARGS__)
+#define LOG_ERROR(...) KUBER_LOG(::kuber::Logger::Level::Error, __VA_ARGS__)
+#define LOG_CRITICAL(...) KUBER_LOG(::kuber::Logger::Level::Critical, __VA_ARGS__)
